@@ -1,10 +1,10 @@
 import { LINKS, YEAR, DIFFICULTY_STYLES, NXCTF } from './const'
 
 export const APP = {
-  shortName: "NXCTF",
-  fullName: "NXCTF",
-  description: "Aplikasi CTF minimalis dengan Next.js dan Supabase",
-  flagFormat: "NXCTF{your_flag_here}",
+  shortName: "NFCTF",
+  fullName: "Nurul FIkri Capture The Flag",
+  description: "Nurul FIkri Capture The Flag",
+  flagFormat: "NFCTF{your_flag_here}",
 
   challengeCategories: [
     "Intro",
@@ -25,7 +25,7 @@ export const APP = {
   // Base URL (ambil dari env kalau ada). Prefer changing NEXT_PUBLIC_SITE_URL in .env.local.
   baseUrl: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
   image_icon: "favicon.ico",
-  image_logo: "logo.svg",
+  image_logo: "logo.png",
   image_preview: "og-image.png",
 
   // Turnstile aktif otomatis kalau site key ada di env.
@@ -36,7 +36,7 @@ export const APP = {
   notifSolves: true, // notifikasi global saat ada yang solve challenge
 
   teams: {
-    enabled: true,
+    enabled: false,
     hideScoreboardIndividual: false,
     hidescoreboardTotal: false,
   },
@@ -57,7 +57,7 @@ export const APP = {
 
   links: {
     ...LINKS,
-    discord: "https://discord.gg/5etKks6aQQ",
+    discord: "https://discord.gg/m6w7V883m4",
   },
   difficultyStyles: DIFFICULTY_STYLES,
   year: YEAR,
