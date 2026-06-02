@@ -100,7 +100,7 @@ export default function Home() {
             transition={{ delay: 0.2 }}
             className="text-base sm:text-lg text-gray-600 dark:text-gray-400 max-w-xl mb-8 leading-relaxed"
           >
-            Modern CTF Infrastructure. Featuring <b>nxctl</b> instances, multi-step tasks, and enterprise-grade event management.
+            Platform internal <b>NFCC</b> untuk <i>mahasiswa Nurul Fikri</i>: ruang belajar, latihan, dan sparring cybersecurity lewat challenge Capture The Flag.
           </motion.p>
 
           <motion.div

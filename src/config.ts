@@ -2,8 +2,8 @@ import { LINKS, YEAR, DIFFICULTY_STYLES, NXCTF } from './const'
 
 export const APP = {
   shortName: "NFCTF",
-  fullName: "Nurul FIkri Capture The Flag",
-  description: "Nurul FIkri Capture The Flag",
+  fullName: "Nurul Fikri Capture The Flag",
+  description: "Nurul Fikri Capture The Flag",
   flagFormat: "NFCTF{your_flag_here}",
 
   challengeCategories: [
