@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/shared/contexts'
 import { AuthService } from '@/features/auth'
 import { getInfo } from '@/features/admin/overview/services/site-info.service'
+import { getSolversAll } from '@/features/admin/solvers/lib'
 import { getChallengesList } from '@/shared/lib'
 import type { Challenge } from '@/shared/types'
+import type { SolverRow } from '@/features/admin/solvers/types'
 import type { ActivityPoint, TimeRange, SiteInfo } from '../types'
 import { getStatsByRange } from '../services/activity-stats.service'
 
@@ -18,7 +20,10 @@ export function useAdminOverviewData() {
   const [siteInfo, setSiteInfo] = useState<SiteInfo | null>(null)
   const [timeRange, setTimeRange] = useState<TimeRange>('7d')
   const [activityData, setActivityData] = useState<ActivityPoint[]>([])
+  const [recentSolves, setRecentSolves] = useState<SolverRow[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [accessReady, setAccessReady] = useState(false)
+  const [isAllowed, setIsAllowed] = useState(false)
 
   const refreshStats = useCallback(async (newRange: TimeRange) => {
     setTimeRange(newRange)
@@ -33,27 +38,32 @@ export function useAdminOverviewData() {
       if (authLoading) return
 
       if (!user) {
+        setAccessReady(true)
         router.push('/challenges')
         return
       }
 
       const adminCheck = await AuthService.isGlobalAdmin()
       if (!mounted) return
+      setIsAllowed(adminCheck)
+      setAccessReady(true)
       if (!adminCheck) {
         router.push('/challenges')
         return
       }
 
-      const [challengeList, info, stats] = await Promise.all([
-        getChallengesList(undefined, true),
+      const [challengeList, info, stats, solves] = await Promise.all([
+        getChallengesList(undefined, true, 'all'),
         getInfo(),
         getStatsByRange(timeRange),
+        getSolversAll(10, 0),
       ])
 
       if (!mounted) return
       setChallenges(challengeList)
       setSiteInfo(info)
       setActivityData(stats)
+      setRecentSolves(solves)
       setIsLoading(false)
     }
 
@@ -64,11 +74,14 @@ export function useAdminOverviewData() {
   return {
     user,
     authLoading,
+    accessReady,
+    isAllowed,
     isLoading,
     challenges,
     siteInfo,
     timeRange,
     activityData,
+    recentSolves,
     refreshStats,
   }
 }

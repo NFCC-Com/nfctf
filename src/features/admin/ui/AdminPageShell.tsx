@@ -1,31 +1,19 @@
-'use client'
-
-import React from 'react'
+import type { ReactNode } from 'react'
 import { cn } from '@/shared/lib/utils'
 
 interface AdminPageShellProps {
-  children: React.ReactNode
+  children: ReactNode
   mainClassName?: string
-  backButtonClassName?: string
 }
 
-const AdminPageShell = ({
+export default function AdminPageShell({
   children,
   mainClassName = '',
-  backButtonClassName = '',
-}: AdminPageShellProps) => {
+}: AdminPageShellProps) {
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col">
-      <main
-        className={cn(
-          'mx-auto w-full max-w-7xl flex-1 px-4 py-3 sm:px-6 sm:py-4 lg:px-8',
-          mainClassName
-        )}
-      >
-        {children}
-      </main>
+    <div className={cn('min-w-0 flex flex-col', mainClassName)}>
+      <div className="flex-1 min-w-0">{children}</div>
     </div>
   )
 }
 
-export default AdminPageShell

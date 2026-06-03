@@ -1,12 +1,11 @@
 "use client"
 
-import { Loader } from '@/shared/components'
 import AddEventAdminCard from './AddEventAdminCard'
 import EventAdminsCard from './EventAdminsCard'
 import GlobalAdminsCard from './GlobalAdminsCard'
 import RemoveEventAdminConfirmDialog from './RemoveEventAdminConfirmDialog'
 import { useAdminAdminsData } from '../hooks/useAdminAdminsData'
-import { AdminPageShell } from '../../ui'
+import { AdminContentLoading, AdminPageShell, AdminPageToolbar } from '../../ui'
 
 export default function AdminAdminsPage() {
   const {
@@ -37,12 +36,24 @@ export default function AdminAdminsPage() {
     resetGrantForm,
   } = useAdminAdminsData()
 
-  if (authLoading || isLoading) return <Loader fullscreen />
+  if (authLoading || (isLoading && !isAllowed)) return <AdminContentLoading variant="admins" />
   if (!user || !isAllowed) return null
+
+  if (isLoading) {
+    return (
+      <AdminPageShell>
+        <AdminContentLoading variant="admins" />
+      </AdminPageShell>
+    )
+  }
 
   return (
     <>
       <AdminPageShell>
+        <AdminPageToolbar
+          title={<h1 className="text-xl font-bold text-gray-900 dark:text-white">Admin Roles</h1>}
+        />
+
         <div className="space-y-5">
           <GlobalAdminsCard admins={globalAdmins} />
 

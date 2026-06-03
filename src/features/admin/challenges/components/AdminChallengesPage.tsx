@@ -4,13 +4,11 @@ import React, { useEffect, useState, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import toast from 'react-hot-toast'
 
-import { Loader } from '@/shared/components'
 import { useAuth } from '@/shared/contexts/AuthContext'
 import { supabase } from '@/lib/supabase/client'
 import APP from '@/config'
 
 import ChallengeListPanel from './ChallengeListPanel'
-import ChallengeSidebar from './ChallengeSidebar'
 import ChallengeFormDialogHost from './ChallengeFormDialogHost'
 import DeleteChallengeConfirmDialog from './DeleteChallengeConfirmDialog'
 import { FlagPreviewDialog } from './FlagPreviewDialog'
@@ -18,6 +16,7 @@ import { useAdminChallengesData } from '../hooks/useAdminChallengesData'
 import { useChallengeForm } from '../hooks/useChallengeForm'
 import { getFilteredAdminChallenges } from '../lib'
 import type { AdminChallengeEventId, AdminChallengeFilterState, Challenge } from '../types'
+import { AdminContentLoading, AdminPageShell } from '../../ui'
 
 export default function AdminChallengesPage() {
   const router = useRouter()
@@ -26,8 +25,6 @@ export default function AdminChallengesPage() {
 
   const {
     challenges,
-    solvers,
-    siteInfo,
     events,
     adminScope,
     isLoading: dataLoading,
@@ -60,7 +57,9 @@ export default function AdminChallengesPage() {
     category: "all",
     difficulty: "all",
     search: "",
-    feature: "N",
+    scope: "all",
+    visibility: "all",
+    service: "all",
   })
 
   const isGlobalAdmin = adminScope?.is_global_admin ?? false
@@ -173,13 +172,21 @@ export default function AdminChallengesPage() {
     })
   }, [challenges, adminScope, isGlobalAdmin, eventId, filters])
 
-  if (authLoading || dataLoading) return <Loader fullscreen />
+  if (authLoading || (dataLoading && !adminScope)) return <AdminContentLoading variant="challenges" />
   if (!user) return null
 
+  if (dataLoading) {
+    return (
+      <AdminPageShell>
+        <AdminContentLoading variant="challenges" />
+      </AdminPageShell>
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <main className="mx-auto w-full max-w-7xl px-4 py-3 sm:px-6 sm:py-4 lg:px-8">
-        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-4">
+    <>
+      <AdminPageShell>
+        <div className="min-w-0">
           <ChallengeListPanel
             challenges={challenges}
             filteredChallenges={filteredChallenges}
@@ -199,16 +206,8 @@ export default function AdminChallengesPage() {
             onToggleMaintenance={toggleChallengeMaintenance}
             onToggleActive={toggleChallengeActive}
           />
-
-          <ChallengeSidebar
-            challenges={challenges}
-            solvers={solvers}
-            siteInfo={siteInfo}
-            isGlobalAdmin={isGlobalAdmin}
-            onViewAllSolvers={() => router.push('/admin/solvers')}
-          />
         </div>
-      </main>
+      </AdminPageShell>
 
       <ChallengeFormDialogHost
         open={openForm}
@@ -238,6 +237,6 @@ export default function AdminChallengesPage() {
         }}
         fetchedFlag={fetchedFlag}
       />
-    </div>
+    </>
   )
 }

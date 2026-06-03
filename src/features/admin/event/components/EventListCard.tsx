@@ -1,73 +1,72 @@
 import React from 'react'
 import { motion } from 'framer-motion'
-import { Inbox } from 'lucide-react'
-import { Button, Card, CardContent, CardHeader, CardTitle } from '@/shared/ui'
-import { EmptyState } from '@/shared/components'
-import { ADMIN_CARD_CLASS, ADMIN_CARD_TITLE_CLASS, ADMIN_LIST_PANEL_CLASS } from '@/features/admin/ui'
+import { Button } from '@/shared/ui'
+import { AdminPageSurface, AdminListSurface, AdminEmptyState } from '@/features/admin/ui'
 import type { Event } from '../types'
 
 interface EventListCardProps {
   events: Event[]
-  onAdd: () => void
   onEdit: (evt: Event) => void
   onDelete: (evt: Event) => void
 }
 
-const EventListCard: React.FC<EventListCardProps> = ({ events, onAdd, onEdit, onDelete }) => {
+const EventListCard: React.FC<EventListCardProps> = ({ events, onEdit, onDelete }) => {
   return (
-    <Card className={ADMIN_CARD_CLASS}>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className={ADMIN_CARD_TITLE_CLASS}>Event List</CardTitle>
-        <Button onClick={onAdd} className="bg-primary-600 text-white hover:bg-primary-700">
-          + Add Event
-        </Button>
-      </CardHeader>
-      <CardContent>
-        {events.length === 0 ? (
-          <EmptyState
-            icon={<Inbox className="w-full h-full" />}
+    <AdminPageSurface>
+      {events.length === 0 ? (
+        <div className="p-6">
+          <AdminEmptyState
             title="No events yet"
             description="Create your first event to get started."
-            containerHeight="py-10"
           />
-        ) : (
-          <motion.div
-            className={`divide-y ${ADMIN_LIST_PANEL_CLASS}`}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-          >
+        </div>
+      ) : (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          <AdminListSurface>
             {events.map((evt) => (
-              <div key={evt.id} className="px-4 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-white dark:bg-gray-900/40">
+              <div
+                key={evt.id}
+                className="px-5 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3 hover:bg-white/40 dark:hover:bg-gray-800/10 transition-colors duration-150"
+              >
                 <div className="min-w-0">
-                  <div className="font-medium text-gray-900 dark:text-white truncate">{evt.name}</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-300 truncate">{evt.description || 'No description'}</div>
-                  <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                    {evt.start_time ? `Start: ${new Date(evt.start_time).toLocaleString()}` : 'Start: -'}
-                    <span className="mx-2">•</span>
-                    {evt.end_time ? `End: ${new Date(evt.end_time).toLocaleString()}` : 'End: -'}
+                  <div className="font-semibold text-gray-900 dark:text-white truncate">
+                    {evt.name}
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                    {evt.description || 'No description'}
+                  </div>
+                  <div className="text-xs text-gray-450 dark:text-gray-500 mt-1.5 font-medium flex items-center gap-1.5 flex-wrap">
+                    <span>Start: {evt.start_time ? new Date(evt.start_time).toLocaleString() : '-'}</span>
+                    <span className="text-gray-300 dark:text-gray-700">•</span>
+                    <span>End: {evt.end_time ? new Date(evt.end_time).toLocaleString() : '-'}</span>
                     {evt.always_show_challenges && (
                       <>
-                        <span className="mx-2">•</span>
-                        Always show challenges
+                        <span className="text-gray-300 dark:text-gray-700">•</span>
+                        <span className="text-blue-500/80 dark:text-blue-400/80 font-bold">
+                          Always show challenges
+                        </span>
                       </>
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => onEdit(evt)}>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button variant="outline" size="sm" onClick={() => onEdit(evt)} className="rounded-xl">
                     Edit
                   </Button>
-                  <Button variant="destructive" size="sm" onClick={() => onDelete(evt)}>
+                  <Button variant="destructive" size="sm" onClick={() => onDelete(evt)} className="rounded-xl">
                     Delete
                   </Button>
                 </div>
               </div>
             ))}
-          </motion.div>
-        )}
-      </CardContent>
-    </Card>
+          </AdminListSurface>
+        </motion.div>
+      )}
+    </AdminPageSurface>
   )
 }
 

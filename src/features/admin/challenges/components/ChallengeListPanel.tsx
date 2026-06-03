@@ -1,10 +1,9 @@
 import React from 'react'
-import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { Power, PowerOff, ShieldAlert } from 'lucide-react'
-import { Button, Card, CardContent, CardHeader, CardTitle } from '@/shared/ui'
-import { EmptyState } from '@/shared/components'
-import ChallengeFilterBar from '@/features/challenges/components/ChallengeFilterBar'
+import { Loader2, Power, PowerOff } from 'lucide-react'
+import { Button } from '@/shared/ui'
+import { AdminPageSurface, AdminPageToolbar, AdminListSurface, AdminEmptyState } from '@/features/admin/ui'
+import AdminChallengesToolbar from './AdminChallengesToolbar'
 import ChallengeListItem from './ChallengeListItem'
 import type { AdminChallengeEventId, AdminChallengeFilterState, Challenge, Event } from '../types'
 
@@ -47,96 +46,100 @@ const ChallengeListPanel: React.FC<ChallengeListPanelProps> = ({
   onToggleActive,
   onToggleMaintenance,
 }) => {
-  return (
-    <motion.div className="lg:col-span-3 order-1" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-      <Card className="h-full bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span>Challenge List</span>
-              {isRefreshing && (
-                <div className="flex items-center gap-2 text-[10px] font-medium text-orange-500 animate-pulse">
-                  <div className="w-1 h-1 rounded-full bg-orange-500 animate-bounce" />
-                  SYNCING...
-                </div>
-              )}
-            </div>
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              {isGlobalAdmin && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onNxctlGlobalAction?.('up')}
-                    disabled={!!nxctlGlobalAction}
-                    title="Start all NXCTL services"
-                  >
-                    <Power size={14} />
-                    Up All
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onNxctlGlobalAction?.('down')}
-                    disabled={!!nxctlGlobalAction}
-                    title="Stop all NXCTL services"
-                    className="hover:border-red-500/40 hover:text-red-600 dark:hover:text-red-300"
-                  >
-                    <PowerOff size={14} />
-                    Down All
-                  </Button>
-                  <Link href="/admin/event"><Button variant="outline" size="sm">Events</Button></Link>
-                  <Link href="/admin/admins"><Button variant="outline" size="sm">Roles</Button></Link>
-                </>
-              )}
-              <Button onClick={onAdd} size="sm">+ Add Challenge</Button>
-            </div>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ChallengeFilterBar
-            filters={filters}
-            categories={Array.from(new Set(challenges.map(c => c.category))).filter(Boolean).sort()}
-            difficulties={Array.from(new Set(challenges.map(c => c.difficulty)))}
-            onFilterChange={v => onFiltersChange({ ...filters, ...v })}
-            onClear={() => onFiltersChange({ category: "all", difficulty: "all", search: "", feature: "N" })}
-            events={events.map(e => ({ id: e.id, name: e.name, start_time: e.start_time, end_time: e.end_time }))}
-            selectedEventId={selectedEventId}
-            onEventChange={onEventChange}
-            hideAllEventOption={!isGlobalAdmin}
-            hideMainEventOption={!isGlobalAdmin}
-            includeEndedEvents
-            showEventState={false}
-            eventNavigationMode="select"
-            upcomingVisibilityWindowDays={null}
-          />
+  const headerActions = (
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      {isGlobalAdmin && (
+        <>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onNxctlGlobalAction?.('up')}
+            disabled={!!nxctlGlobalAction}
+            title="Start all NXCTL services"
+            className="rounded-xl animate-none"
+          >
+            <Power size={14} />
+            Up All
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onNxctlGlobalAction?.('down')}
+            disabled={!!nxctlGlobalAction}
+            title="Stop all NXCTL services"
+            className="hover:border-red-500/40 hover:text-red-600 dark:hover:text-red-300 rounded-xl"
+          >
+            <PowerOff size={14} />
+            Down All
+          </Button>
+        </>
+      )}
+      <Button onClick={onAdd} size="sm" className="rounded-xl">+ Add Challenge</Button>
+    </div>
+  )
 
-          <div className="mt-4 space-y-2">
-            {filteredChallenges.length === 0 ? (
-              <EmptyState
-                icon={<ShieldAlert className="w-full h-full" />}
-                title="No challenges found"
-                description="Try adjusting your filters or add a new challenge."
-                containerHeight="py-8"
-              />
-            ) : (
-              <div className="divide-y border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
-                {filteredChallenges.map(challenge => (
-                  <ChallengeListItem
-                    key={challenge.id}
-                    challenge={challenge}
-                    onEdit={onEdit}
-                    onDelete={onDelete}
-                    onViewFlag={onViewFlag}
-                    onToggleMaintenance={onToggleMaintenance}
-                    onToggleActive={onToggleActive}
-                  />
-                ))}
-              </div>
+  return (
+    <motion.div className="order-1 xl:col-span-3 space-y-5" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+      {/* Page Toolbar */}
+      <AdminPageToolbar
+        title={
+          <>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Challenges</h1>
+            {isRefreshing && (
+              <p className="mt-0.5 inline-flex items-center gap-1.5 text-xs text-orange-500">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Synchronizing services...
+              </p>
             )}
+          </>
+        }
+        actions={headerActions}
+      />
+
+      <AdminChallengesToolbar
+        filters={filters}
+        onFiltersChange={onFiltersChange}
+        categories={Array.from(new Set(challenges.map(c => c.category))).filter(Boolean).sort()}
+        difficulties={Array.from(new Set(challenges.map(c => c.difficulty))).filter(Boolean).sort()}
+        events={events}
+        selectedEventId={selectedEventId}
+        onEventChange={onEventChange}
+        isGlobalAdmin={isGlobalAdmin}
+        onClear={() => onFiltersChange({
+          category: "all",
+          difficulty: "all",
+          search: "",
+          scope: "all",
+          visibility: "all",
+          service: "all"
+        })}
+      />
+
+      {/* Main List Surface */}
+      <AdminPageSurface>
+        {filteredChallenges.length === 0 ? (
+          <div className="p-6">
+            <AdminEmptyState
+              title="No challenges found"
+              description="Try adjusting your filters or add a new challenge."
+            />
           </div>
-        </CardContent>
-      </Card>
+        ) : (
+          <AdminListSurface>
+            {filteredChallenges.map(challenge => (
+              <ChallengeListItem
+                key={challenge.id}
+                challenge={challenge}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                onViewFlag={onViewFlag}
+                onToggleMaintenance={onToggleMaintenance}
+                onToggleActive={onToggleActive}
+              />
+            ))}
+          </AdminListSurface>
+        )}
+      </AdminPageSurface>
     </motion.div>
   )
 }

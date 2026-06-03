@@ -1,10 +1,9 @@
 "use client"
 
-import { Loader } from '@/shared/components'
 import DeleteSolverConfirmDialog from './DeleteSolverConfirmDialog'
 import SolversListCard from './SolversListCard'
 import { useAdminSolversData } from '../hooks/useAdminSolversData'
-import { AdminPageShell } from '../../ui'
+import { AdminContentLoading, AdminPageShell } from '../../ui'
 
 export default function AdminSolversPage() {
   const {
@@ -32,8 +31,16 @@ export default function AdminSolversPage() {
     doDelete,
   } = useAdminSolversData()
 
-  if (authLoading || isLoading) return <Loader fullscreen />
+  if (authLoading || (isLoading && !isAdminUser)) return <AdminContentLoading variant="solvers" />
   if (!user || !isAdminUser) return null
+
+  if (isLoading) {
+    return (
+      <AdminPageShell>
+        <AdminContentLoading variant="solvers" />
+      </AdminPageShell>
+    )
+  }
 
   const clearPendingDelete = () => {
     setPendingDelete(null)
