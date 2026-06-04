@@ -2,6 +2,25 @@ import React, { type ReactNode } from 'react'
 import { AlertTriangle } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import EmptyState from '@/shared/components/EmptyState'
+import {
+  AppTabs,
+  type AppTabItem,
+  Badge,
+  DataSurface,
+  FilterInput,
+  FilterSelect,
+  FilterToolbar,
+  type FilterSelectOption,
+} from '@/shared/ui'
+
+export const ADMIN_STICKY_TOOLBAR_CLASS =
+  'sticky top-14 z-30 -mx-4 border-b border-gray-200/60 bg-white/95 px-4 py-2.5 backdrop-blur-md dark:border-gray-800/60 dark:bg-[#0b0f19]/95 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8'
+
+export const ADMIN_CONTROL_CLASS =
+  'h-9 rounded-xl text-xs font-semibold'
+
+export const ADMIN_ROW_CLASS =
+  'border-b border-gray-100/80 transition-colors duration-150 ease-in-out last:border-b-0 hover:bg-blue-50/40 dark:border-gray-800/70 dark:hover:bg-blue-900/10'
 
 interface AdminPageSurfaceProps {
   children: ReactNode
@@ -16,37 +35,64 @@ export function AdminPageSurface({ children, className }: AdminPageSurfaceProps)
   )
 }
 
-interface AdminPageToolbarProps {
-  title?: ReactNode
+interface AdminStickyToolbarProps {
+  tabs?: ReactNode
+  filters?: ReactNode
   actions?: ReactNode
   className?: string
+  contentClassName?: string
 }
 
-export function AdminPageToolbar({ title, actions, className }: AdminPageToolbarProps) {
+export function AdminStickyToolbar({
+  tabs,
+  filters,
+  actions,
+  className,
+  contentClassName,
+}: AdminStickyToolbarProps) {
   return (
-    <div className={cn("flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-200/50 dark:border-gray-800/60 mb-5", className)}>
-      <div className="space-y-1 min-w-0">
-        {title}
+    <div className={cn(ADMIN_STICKY_TOOLBAR_CLASS, className)}>
+      <div className={cn('flex flex-col gap-2.5', contentClassName)}>
+        {(tabs || actions) && (
+          <div className={cn(
+            'flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between',
+            filters && 'border-b border-gray-100/60 pb-2 dark:border-gray-800/40'
+          )}>
+            {tabs && <div className="min-w-0">{tabs}</div>}
+            {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+          </div>
+        )}
+        {filters}
       </div>
-      {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
     </div>
   )
 }
 
-interface AdminTabsBarProps {
-  tabs: ReactNode
-  actions?: ReactNode
+interface AdminTabsProps<T extends string> {
+  items: AppTabItem<T>[]
+  value: T
+  onChange: (value: T) => void
   className?: string
+  stretch?: boolean
 }
 
-export function AdminTabsBar({ tabs, actions, className }: AdminTabsBarProps) {
+export function AdminTabs<T extends string>({
+  items,
+  value,
+  onChange,
+  className,
+  stretch,
+}: AdminTabsProps<T>) {
   return (
-    <div className={cn("flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5", className)}>
-      <div className="min-w-0 flex-1">
-        {tabs}
-      </div>
-      {actions && <div className="flex shrink-0 items-center gap-2 mt-2 sm:mt-0">{actions}</div>}
-    </div>
+    <AppTabs
+      items={items}
+      value={value}
+      onValueChange={onChange}
+      variant="panel"
+      className={className}
+      stretch={stretch}
+      ariaLabel="Admin tabs"
+    />
   )
 }
 
@@ -73,6 +119,33 @@ export function AdminTableSurface({ children, className }: AdminTableSurfaceProp
     <div className={cn("overflow-x-auto", className)}>
       {children}
     </div>
+  )
+}
+
+interface AdminDataSurfaceProps {
+  children: ReactNode
+  toolbar?: ReactNode
+  empty?: ReactNode
+  className?: string
+  contentClassName?: string
+}
+
+export function AdminDataSurface({
+  children,
+  toolbar,
+  empty,
+  className,
+  contentClassName,
+}: AdminDataSurfaceProps) {
+  return (
+    <DataSurface
+      toolbar={toolbar}
+      empty={empty}
+      className={className}
+      contentClassName={contentClassName}
+    >
+      {children}
+    </DataSurface>
   )
 }
 
@@ -107,36 +180,45 @@ export function AdminSection({ title, description, children, className }: AdminS
   )
 }
 
-interface AdminFilterBarProps {
-  children: ReactNode
-  className?: string
+export const AdminFilterToolbar = FilterToolbar
+export const AdminFilterInput = FilterInput
+
+type AdminFilterSelectProps = Omit<React.ComponentProps<typeof FilterSelect>, 'onChange'> & {
+  onValueChange: (value: string) => void
+  options: FilterSelectOption[]
 }
 
-export function AdminFilterBar({ children, className }: AdminFilterBarProps) {
+export function AdminFilterSelect({ onValueChange, ...props }: AdminFilterSelectProps) {
+  return <FilterSelect onChange={onValueChange} {...props} />
+}
+
+const ADMIN_STATUS_BADGE_CLASS = {
+  neutral: 'border-gray-300/80 bg-gray-100/60 text-gray-600 dark:border-gray-700 dark:bg-gray-800/80 dark:text-gray-300',
+  muted: 'border-gray-300/80 bg-gray-100/60 text-gray-500 dark:border-gray-700 dark:bg-gray-800/80 dark:text-gray-400',
+  info: 'border-blue-500/25 bg-blue-500/10 text-blue-700 dark:text-blue-300',
+  success: 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+  warning: 'border-yellow-500/25 bg-yellow-500/10 text-yellow-700 dark:text-yellow-300',
+  danger: 'border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-300',
+} as const
+
+export type AdminStatusBadgeTone = keyof typeof ADMIN_STATUS_BADGE_CLASS
+
+interface AdminStatusBadgeProps extends React.ComponentProps<typeof Badge> {
+  tone?: AdminStatusBadgeTone
+}
+
+export function AdminStatusBadge({
+  tone = 'neutral',
+  className,
+  variant = 'outline',
+  ...props
+}: AdminStatusBadgeProps) {
   return (
-    <div
-      className={cn(
-        "flex flex-wrap items-center gap-2 w-full pt-0.5 pb-3",
-        className
-      )}
-    >
-      {children}
-    </div>
-  )
-}
-
-interface AdminTableCardProps {
-  toolbar?: ReactNode
-  children: ReactNode
-  className?: string
-}
-
-export function AdminTableCard({ toolbar, children, className }: AdminTableCardProps) {
-  return (
-    <AdminPageSurface className={className}>
-      {toolbar}
-      {children}
-    </AdminPageSurface>
+    <Badge
+      variant={variant}
+      className={cn(ADMIN_STATUS_BADGE_CLASS[tone], className)}
+      {...props}
+    />
   )
 }
 

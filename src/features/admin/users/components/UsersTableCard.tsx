@@ -2,17 +2,10 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Check, ChevronLeft, ChevronRight, Copy, ExternalLink, Search } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, Copy, ExternalLink } from 'lucide-react'
 import { ImageWithFallback } from '@/shared/components'
 import {
-  Badge,
   Button,
-  Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Table,
   TableBody,
   TableCell,
@@ -20,11 +13,34 @@ import {
   TableHeader,
   TableRow,
 } from '@/shared/ui'
-import { AdminPageSurface, AdminFilterBar, AdminTableSurface, AdminEmptyState } from '@/features/admin/ui'
+import {
+  ADMIN_ROW_CLASS,
+  AdminDataSurface,
+  AdminEmptyState,
+  AdminFilterInput,
+  AdminFilterSelect,
+  AdminFilterToolbar,
+  AdminStatusBadge,
+  AdminTableSurface,
+} from '@/features/admin/ui'
 import type { AdminUserRow, UserSocialLinks } from '../types'
 
 type UsersTableCardProps = {
   users: AdminUserRow[]
+  totalCount: number
+  isDataLoading: boolean
+  query: string
+  setQuery: (q: string) => void
+  searchQuery: string
+  setSearchQuery: (q: string) => void
+  roleFilter: 'all' | 'admin' | 'user'
+  setRoleFilter: (role: 'all' | 'admin' | 'user') => void
+  sortMode: 'newest' | 'oldest' | 'username_asc' | 'updated_desc' | 'role'
+  setSortMode: (sort: 'newest' | 'oldest' | 'username_asc' | 'updated_desc' | 'role') => void
+  pageSize: number
+  setPageSize: (size: number) => void
+  page: number
+  setPage: React.Dispatch<React.SetStateAction<number>>
 }
 
 type RoleFilter = 'all' | 'admin' | 'user'
@@ -37,7 +53,7 @@ type SocialItem = {
   href: string | null
 }
 
-const PAGE_SIZE_OPTIONS = [25, 50, 100]
+const PAGE_SIZE_OPTIONS = [100, 500, 1000]
 
 function formatDate(value?: string) {
   if (!value) return '-'
@@ -50,14 +66,6 @@ function formatDate(value?: string) {
     day: 'numeric',
     year: 'numeric',
   })
-}
-
-function compareDateDesc(a?: string, b?: string) {
-  return new Date(b || 0).getTime() - new Date(a || 0).getTime()
-}
-
-function compareDateAsc(a?: string, b?: string) {
-  return new Date(a || 0).getTime() - new Date(b || 0).getTime()
 }
 
 function truncateUserId(id: string) {
@@ -89,51 +97,30 @@ function getSocialItems(sosmed: UserSocialLinks): SocialItem[] {
     })
 }
 
-export default function UsersTableCard({ users }: UsersTableCardProps) {
-  const [query, setQuery] = useState('')
-  const [roleFilter, setRoleFilter] = useState<RoleFilter>('all')
-  const [sortMode, setSortMode] = useState<SortMode>('newest')
-  const [pageSize, setPageSize] = useState(25)
-  const [page, setPage] = useState(1)
+export default function UsersTableCard({
+  users,
+  totalCount,
+  isDataLoading,
+  query,
+  setQuery,
+  searchQuery,
+  setSearchQuery,
+  roleFilter,
+  setRoleFilter,
+  sortMode,
+  setSortMode,
+  pageSize,
+  setPageSize,
+  page,
+  setPage,
+}: UsersTableCardProps) {
   const [copiedUserId, setCopiedUserId] = useState<string | null>(null)
 
-  const resetPage = () => setPage(1)
-
-  const filteredUsers = useMemo(() => {
-    const keyword = query.trim().toLowerCase()
-
-    return users
-      .filter((listedUser) => {
-        if (roleFilter === 'admin' && !listedUser.is_admin) return false
-        if (roleFilter === 'user' && listedUser.is_admin) return false
-        if (!keyword) return true
-
-        return (
-          listedUser.username.toLowerCase().includes(keyword) ||
-          listedUser.id.toLowerCase().includes(keyword) ||
-          (listedUser.bio || '').toLowerCase().includes(keyword)
-        )
-      })
-      .sort((a, b) => {
-        if (sortMode === 'newest') return compareDateDesc(a.created_at, b.created_at)
-        if (sortMode === 'oldest') return compareDateAsc(a.created_at, b.created_at)
-        if (sortMode === 'updated_desc') return compareDateDesc(a.updated_at, b.updated_at)
-        if (sortMode === 'role') {
-          if (a.is_admin !== b.is_admin) return a.is_admin ? -1 : 1
-          return a.username.localeCompare(b.username)
-        }
-        return a.username.localeCompare(b.username)
-      })
-  }, [query, roleFilter, sortMode, users])
-
-  const pageCount = Math.max(1, Math.ceil(filteredUsers.length / pageSize))
+  const pageCount = Math.max(1, Math.ceil(totalCount / pageSize))
   const safePage = Math.min(page, pageCount)
-  const startIndex = (safePage - 1) * pageSize
-  const visibleUsers = filteredUsers.slice(startIndex, startIndex + pageSize)
-  const firstResult = filteredUsers.length === 0 ? 0 : startIndex + 1
-  const lastResult = Math.min(startIndex + pageSize, filteredUsers.length)
-  const adminCount = users.filter((listedUser) => listedUser.is_admin).length
-
+  const firstResult = totalCount === 0 ? 0 : (safePage - 1) * pageSize + 1
+  const lastResult = Math.min(safePage * pageSize, totalCount)
+  
   const handleCopyUserId = async (id: string) => {
     if (!navigator.clipboard) return
 
@@ -145,93 +132,28 @@ export default function UsersTableCard({ users }: UsersTableCardProps) {
   }
 
   return (
-    <AdminPageSurface>
-      <AdminFilterBar className="pt-0.5">
-          <div className="flex flex-wrap items-center gap-2 w-full text-xs">
-            <div className="relative w-full max-w-md">
-              <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-              <Input
-                value={query}
-                onChange={(event) => {
-                  setQuery(event.target.value)
-                  resetPage()
-                }}
-                placeholder="Search username, ID, bio..."
-                className="rounded-xl pl-9 h-9 w-full bg-transparent"
-              />
-            </div>
-
-            <Select
-              value={roleFilter}
-              onValueChange={(value) => {
-                setRoleFilter(value as RoleFilter)
-                resetPage()
-              }}
-            >
-              <SelectTrigger className="w-[130px] h-9 text-xs rounded-xl bg-white/30 dark:bg-gray-900/40 border border-gray-200/50 dark:border-gray-800/50 font-semibold text-gray-700 dark:text-gray-200 hover:border-blue-500/40">
-                <SelectValue placeholder="Role" />
-              </SelectTrigger>
-              <SelectContent className="bg-white/95 dark:bg-[#111622]/95 border border-gray-200/80 dark:border-gray-800/90 rounded-xl shadow-lg backdrop-blur-xl">
-                <SelectItem value="all">All roles</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="user">User</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={sortMode}
-              onValueChange={(value) => {
-                setSortMode(value as SortMode)
-                resetPage()
-              }}
-            >
-              <SelectTrigger className="w-[150px] h-9 text-xs rounded-xl bg-white/30 dark:bg-gray-900/40 border border-gray-200/50 dark:border-gray-800/50 font-semibold text-gray-700 dark:text-gray-200 hover:border-blue-500/40">
-                <SelectValue placeholder="Sort" />
-              </SelectTrigger>
-              <SelectContent className="bg-white/95 dark:bg-[#111622]/95 border border-gray-200/80 dark:border-gray-800/90 rounded-xl shadow-lg backdrop-blur-xl">
-                <SelectItem value="newest">Newest</SelectItem>
-                <SelectItem value="oldest">Oldest</SelectItem>
-                <SelectItem value="username_asc">Username</SelectItem>
-                <SelectItem value="updated_desc">Recently updated</SelectItem>
-                <SelectItem value="role">Role</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={String(pageSize)}
-              onValueChange={(value) => {
-                setPageSize(Number(value))
-                resetPage()
-              }}
-            >
-              <SelectTrigger className="w-[120px] h-9 text-xs rounded-xl bg-white/30 dark:bg-gray-900/40 border border-gray-200/50 dark:border-gray-800/50 font-semibold text-gray-700 dark:text-gray-200 hover:border-blue-500/40">
-                <SelectValue placeholder="Rows" />
-              </SelectTrigger>
-              <SelectContent className="bg-white/95 dark:bg-[#111622]/95 border border-gray-200/80 dark:border-gray-800/90 rounded-xl shadow-lg backdrop-blur-xl">
-                {PAGE_SIZE_OPTIONS.map((option) => (
-                  <SelectItem key={option} value={String(option)}>
-                    {option} rows
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </AdminFilterBar>
-
-        {filteredUsers.length === 0 ? (
-          <div className="p-5">
-            <AdminEmptyState
-              title="No users match the current filters"
-              description="Try adjusting your search, role filter, or sort."
-            />
-          </div>
-        ) : (
-          <>
+    <AdminDataSurface
+      empty={users.length === 0 ? (
+        <AdminEmptyState
+          title="No users match the current filters"
+          description="Try adjusting your search, role filter, or sort."
+        />
+      ) : null}
+    >
             <AdminTableSurface>
               <Table>
+                <TableHeader className="border-b border-gray-200/70 dark:border-gray-800/70">
+                  <TableRow>
+                    <TableHead className="pl-6 text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">User</TableHead>
+                    <TableHead className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Role</TableHead>
+                    <TableHead className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Email</TableHead>
+                    <TableHead className="text-right text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Created</TableHead>
+                    <TableHead className="text-right text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Updated</TableHead>
+                    <TableHead className="pr-6 text-right text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
                 <TableBody>
-                  {visibleUsers.map((listedUser) => {
-                    const socialItems = getSocialItems(listedUser.sosmed)
+                  {users.map((listedUser) => {
                     const profileHref = listedUser.username
                       ? `/user/${encodeURIComponent(listedUser.username)}`
                       : null
@@ -239,7 +161,7 @@ export default function UsersTableCard({ users }: UsersTableCardProps) {
                     return (
                       <TableRow
                         key={listedUser.id}
-                        className="border-b border-gray-100/80 transition-colors duration-150 ease-in-out last:border-b-0 hover:bg-blue-50/40 dark:border-gray-800/70 dark:hover:bg-blue-900/10"
+                        className={ADMIN_ROW_CLASS}
                       >
                         <TableCell className="pl-6">
                           <div className="flex min-w-[180px] items-center gap-3">
@@ -270,73 +192,12 @@ export default function UsersTableCard({ users }: UsersTableCardProps) {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs text-muted-foreground" title={listedUser.id}>
-                              {truncateUserId(listedUser.id)}
-                            </span>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleCopyUserId(listedUser.id)}
-                              aria-label="Copy user ID"
-                              className="h-8 w-8 rounded-lg text-muted-foreground hover:text-blue-600 dark:hover:text-blue-300"
-                            >
-                              {copiedUserId === listedUser.id ? (
-                                <Check className="h-4 w-4" />
-                              ) : (
-                                <Copy className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={
-                              listedUser.is_admin
-                                ? 'border-blue-500/25 bg-blue-500/10 text-blue-600 dark:text-blue-300'
-                                : 'border-gray-300/80 bg-gray-100/60 text-gray-600 dark:border-gray-700 dark:bg-gray-800/80 dark:text-gray-300'
-                            }
-                          >
+                          <AdminStatusBadge tone={listedUser.is_admin ? 'info' : 'neutral'}>
                             {listedUser.is_admin ? 'Admin' : 'User'}
-                          </Badge>
+                          </AdminStatusBadge>
                         </TableCell>
-                        <TableCell>
-                          {socialItems.length > 0 ? (
-                            <div className="flex max-w-[260px] flex-wrap gap-1.5">
-                              {socialItems.slice(0, 3).map((item) => (
-                                item.href ? (
-                                  <a
-                                    key={item.key}
-                                    href={item.href}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="inline-flex items-center gap-1 rounded-lg border border-blue-500/20 bg-blue-500/10 px-2 py-1 text-xs font-semibold text-blue-600 transition-colors hover:bg-blue-500/15 dark:text-blue-300"
-                                    title={item.value}
-                                  >
-                                    {item.label}
-                                    <ExternalLink className="h-3 w-3" />
-                                  </a>
-                                ) : (
-                                  <span
-                                    key={item.key}
-                                    className="inline-flex rounded-lg border border-gray-300/70 bg-gray-100/60 px-2 py-1 text-xs font-semibold text-gray-600 dark:border-gray-700 dark:bg-gray-800/80 dark:text-gray-300"
-                                    title={item.value}
-                                  >
-                                    {item.label}
-                                  </span>
-                                )
-                              ))}
-                              {socialItems.length > 3 && (
-                                <span className="inline-flex rounded-lg border border-gray-300/70 bg-gray-100/60 px-2 py-1 text-xs font-semibold text-gray-500 dark:border-gray-700 dark:bg-gray-800/80 dark:text-gray-400">
-                                  +{socialItems.length - 3}
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-sm text-muted-foreground">-</span>
-                          )}
+                        <TableCell className="font-mono text-xs text-muted-foreground">
+                          {listedUser.email || '-'}
                         </TableCell>
                         <TableCell className="text-right text-xs text-muted-foreground">
                           {formatDate(listedUser.created_at)}
@@ -367,7 +228,7 @@ export default function UsersTableCard({ users }: UsersTableCardProps) {
 
             <div className="mx-6 my-4 flex flex-col gap-3 border-t border-gray-200/80 pt-4 text-sm text-muted-foreground dark:border-gray-800/80 sm:flex-row sm:items-center sm:justify-between">
               <span>
-                Showing {firstResult}-{lastResult} of {filteredUsers.length}
+                Showing {firstResult}-{lastResult} of {totalCount}
               </span>
 
               <div className="flex items-center gap-2">
@@ -398,8 +259,6 @@ export default function UsersTableCard({ users }: UsersTableCardProps) {
                 </Button>
               </div>
             </div>
-          </>
-        )}
-      </AdminPageSurface>
+    </AdminDataSurface>
   )
 }

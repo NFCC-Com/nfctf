@@ -10,6 +10,7 @@ function normalizeAdminUser(row: any): AdminUserRow {
   return {
     id: String(row.id),
     username: String(row.username ?? ''),
+    email: row.email ? String(row.email) : null,
     is_admin: !!row.is_admin,
     bio: row.bio ? String(row.bio) : null,
     sosmed: normalizeSocialLinks(row.sosmed),
@@ -19,16 +20,35 @@ function normalizeAdminUser(row: any): AdminUserRow {
   }
 }
 
-export async function getAdminUsers(): Promise<AdminUserRow[]> {
-  const { data, error } = await supabase
-    .from('users')
-    .select('id,username,is_admin,bio,sosmed,profile_picture_url,created_at,updated_at')
-    .order('username', { ascending: true })
+export async function getAdminUsers(params?: {
+  search?: string
+  role?: 'all' | 'admin' | 'user'
+  sortBy?: 'newest' | 'oldest' | 'username_asc' | 'updated_desc' | 'role'
+  limit?: number
+  offset?: number
+}): Promise<{ users: AdminUserRow[]; totalCount: number }> {
+  try {
+    const { data, error } = await supabase.rpc('get_admin_users_paginated', {
+      p_search: params?.search || null,
+      p_role: params?.role || 'all',
+      p_sort_by: params?.sortBy || 'newest',
+      p_limit: params?.limit || 100,
+      p_offset: params?.offset || 0,
+    })
 
-  if (error) {
+    if (error) {
+      console.error('Error fetching admin users RPC:', error)
+      return { users: [], totalCount: 0 }
+    }
+
+    const totalCount = data && data[0] ? Number(data[0].total_count) : 0
+
+    return {
+      users: (data || []).map(normalizeAdminUser),
+      totalCount,
+    }
+  } catch (error) {
     console.error('Error fetching admin users:', error)
-    return []
+    return { users: [], totalCount: 0 }
   }
-
-  return (data || []).map(normalizeAdminUser)
 }

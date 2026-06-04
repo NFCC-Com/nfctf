@@ -1,14 +1,7 @@
 import React from 'react'
-import { ArrowUpDown, Search } from 'lucide-react'
-import {
-  Input,
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-  Button,
-} from '@/shared/ui'
+import { ArrowUpDown } from 'lucide-react'
+import { Button } from '@/shared/ui'
+import { AdminFilterInput, AdminFilterSelect, AdminFilterToolbar } from '@/features/admin/ui'
 import type { AdminChallengeFilterState } from '../types'
 
 interface AdminChallengeFiltersProps {
@@ -28,7 +21,6 @@ export default function AdminChallengeFilters({
 }: AdminChallengeFiltersProps) {
   const isDirty =
     filters.search ||
-    filters.scope !== 'all' ||
     filters.category !== 'all' ||
     filters.difficulty !== 'all' ||
     filters.visibility !== 'all' ||
@@ -36,115 +28,98 @@ export default function AdminChallengeFilters({
     filters.sortBy !== 'points_desc'
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between w-full pt-0.5">
-      {/* Search Input on the Left */}
-      <div className="flex items-center gap-2 w-full max-w-md">
-        <div className="relative w-full">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400 dark:text-gray-500 pointer-events-none" />
-          <Input
-            type="text"
-            value={filters.search}
-            onChange={(e) => onFiltersChange((prev) => ({ ...prev, search: e.target.value }))}
-            placeholder="Search challenge by name or description..."
-            className="pl-9 h-9 w-full rounded-xl bg-transparent"
+    <AdminFilterToolbar
+      actions={
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+
+          <AdminFilterSelect
+            value={filters.category}
+            onValueChange={(val) => onFiltersChange((prev) => ({ ...prev, category: val }))}
+            placeholder="Category"
+            className="w-full sm:w-[150px]"
+            options={[
+              { value: 'all', label: 'All Categories' },
+              ...categories.map((cat) => ({ value: cat, label: cat })),
+            ]}
+          />
+
+          <AdminFilterSelect
+            value={filters.difficulty}
+            onValueChange={(val) => onFiltersChange((prev) => ({ ...prev, difficulty: val }))}
+            placeholder="Difficulty"
+            className="w-full sm:w-[145px]"
+            options={[
+              { value: 'all', label: 'All Difficulties' },
+              ...difficulties.map((diff) => ({ value: diff, label: diff, className: 'capitalize' })),
+            ]}
+          />
+
+          <AdminFilterSelect
+            value={filters.visibility}
+            onValueChange={(val) => onFiltersChange((prev) => ({ ...prev, visibility: val as AdminChallengeFilterState['visibility'] }))}
+            placeholder="Visibility"
+            className="w-full sm:w-[140px]"
+            options={[
+              { value: 'all', label: 'All Visibility' },
+              { value: 'active', label: 'Active / Visible' },
+              { value: 'inactive', label: 'Inactive / Hidden' },
+              { value: 'maintenance', label: 'Maintenance' },
+            ]}
+          />
+
+          <AdminFilterSelect
+            value={filters.service}
+            onValueChange={(val) => onFiltersChange((prev) => ({ ...prev, service: val as AdminChallengeFilterState['service'] }))}
+            placeholder="Services"
+            className="w-full sm:w-[130px]"
+            options={[
+              { value: 'all', label: 'All Services' },
+              { value: 'services', label: 'Services' },
+              { value: 'placeholder', label: 'Placeholder' },
+              { value: 'tasks', label: 'Tasks' },
+            ]}
+          />
+
+          <AdminFilterSelect
+            value={filters.sortBy || 'points_desc'}
+            defaultValue="points_desc"
+            onValueChange={(val) => onFiltersChange((prev) => ({ ...prev, sortBy: val }))}
+            placeholder="Sort by"
+            className="w-full sm:w-[150px]"
+            icon={<ArrowUpDown className="h-3.5 w-3.5 shrink-0" />}
+            options={[
+              { value: 'points_desc', label: 'Points desc' },
+              { value: 'points_asc', label: 'Points asc' },
+              { value: 'difficulty_asc', label: 'Difficulty asc' },
+              { value: 'difficulty_desc', label: 'Difficulty desc' },
+              { value: 'title_asc', label: 'Name A-Z' },
+              { value: 'title_desc', label: 'Name Z-A' },
+            ]}
           />
         </div>
+      }
+    >
+      <div className="flex items-center gap-2 flex-1 max-w-[320px]">
+        <AdminFilterInput
+          type="text"
+          value={filters.search}
+          defaultValue=""
+          onChange={(value) => onFiltersChange((prev) => ({ ...prev, search: value }))}
+          placeholder="Search challenge by name or description..."
+          wrapperClassName="w-full"
+        />
+
         {isDirty && (
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={onClear}
-            className="text-xs h-9 font-semibold text-gray-500 hover:text-red-600 rounded-xl px-3 shrink-0"
+            className="h-9 shrink-0 rounded-xl px-3.5 text-xs font-bold text-gray-500 hover:text-red-600 dark:border-gray-800"
           >
             Clear
           </Button>
         )}
       </div>
-
-      {/* Select Dropdowns on the Right */}
-      <div className="flex flex-wrap items-center gap-2 sm:justify-end text-xs">
-        {/* Category Filter */}
-        <Select
-          value={filters.category}
-          onValueChange={(val) => onFiltersChange((prev) => ({ ...prev, category: val }))}
-        >
-          <SelectTrigger className="w-[130px] h-9 text-xs rounded-xl bg-white/30 dark:bg-gray-900/40 border border-gray-200/50 dark:border-gray-800/50 font-semibold text-gray-700 dark:text-gray-200 hover:border-blue-500/40">
-            <SelectValue placeholder="Category" />
-          </SelectTrigger>
-          <SelectContent className="bg-white/95 dark:bg-[#111622]/95 border border-gray-200/80 dark:border-gray-800/90 rounded-xl shadow-lg backdrop-blur-xl max-h-[300px] overflow-y-auto">
-            <SelectItem value="all">All Categories</SelectItem>
-            {categories.map((cat) => (
-              <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {/* Difficulty Filter */}
-        <Select
-          value={filters.difficulty}
-          onValueChange={(val) => onFiltersChange((prev) => ({ ...prev, difficulty: val }))}
-        >
-          <SelectTrigger className="w-[130px] h-9 text-xs rounded-xl bg-white/30 dark:bg-gray-900/40 border border-gray-200/50 dark:border-gray-800/50 font-semibold text-gray-700 dark:text-gray-200 hover:border-blue-500/40">
-            <SelectValue placeholder="Difficulty" />
-          </SelectTrigger>
-          <SelectContent className="bg-white/95 dark:bg-[#111622]/95 border border-gray-200/80 dark:border-gray-800/90 rounded-xl shadow-lg backdrop-blur-xl">
-            <SelectItem value="all">All Difficulties</SelectItem>
-            {difficulties.map((diff) => (
-              <SelectItem key={diff} value={diff} className="capitalize">{diff}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {/* Visibility Filter */}
-        <Select
-          value={filters.visibility}
-          onValueChange={(val) => onFiltersChange((prev) => ({ ...prev, visibility: val as any }))}
-        >
-          <SelectTrigger className="w-[130px] h-9 text-xs rounded-xl bg-white/30 dark:bg-gray-900/40 border border-gray-200/50 dark:border-gray-800/50 font-semibold text-gray-700 dark:text-gray-200 hover:border-blue-500/40">
-            <SelectValue placeholder="Visibility" />
-          </SelectTrigger>
-          <SelectContent className="bg-white/95 dark:bg-[#111622]/95 border border-gray-200/80 dark:border-gray-800/90 rounded-xl shadow-lg backdrop-blur-xl">
-            <SelectItem value="all">All Visibility</SelectItem>
-            <SelectItem value="active">Active / Visible</SelectItem>
-            <SelectItem value="inactive">Inactive / Hidden</SelectItem>
-            <SelectItem value="maintenance">Maintenance</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {/* Service Filter */}
-        <Select
-          value={filters.service}
-          onValueChange={(val) => onFiltersChange((prev) => ({ ...prev, service: val as any }))}
-        >
-          <SelectTrigger className="w-[130px] h-9 text-xs rounded-xl bg-white/30 dark:bg-gray-900/40 border border-gray-200/50 dark:border-gray-800/50 font-semibold text-gray-700 dark:text-gray-200 hover:border-blue-500/40">
-            <SelectValue placeholder="Services" />
-          </SelectTrigger>
-          <SelectContent className="bg-white/95 dark:bg-[#111622]/95 border border-gray-200/80 dark:border-gray-800/90 rounded-xl shadow-lg backdrop-blur-xl">
-            <SelectItem value="all">All Services</SelectItem>
-            <SelectItem value="services">Services</SelectItem>
-            <SelectItem value="placeholder">Placeholder</SelectItem>
-            <SelectItem value="tasks">Tasks</SelectItem>
-          </SelectContent>
-        </Select>
-        {/* Sort By */}
-        <Select
-          value={filters.sortBy || 'points_desc'}
-          onValueChange={(val) => onFiltersChange((prev) => ({ ...prev, sortBy: val }))}
-        >
-          <SelectTrigger className="w-[150px] h-9 text-xs rounded-xl bg-white/30 dark:bg-gray-900/40 border border-gray-200/50 dark:border-gray-800/50 font-semibold text-gray-700 dark:text-gray-200 hover:border-blue-500/40">
-            <ArrowUpDown className="h-3 w-3 mr-1 shrink-0" />
-            <SelectValue placeholder="Sort by" />
-          </SelectTrigger>
-          <SelectContent className="bg-white/95 dark:bg-[#111622]/95 border border-gray-200/80 dark:border-gray-800/90 rounded-xl shadow-lg backdrop-blur-xl">
-            <SelectItem value="points_desc">Points ↓</SelectItem>
-            <SelectItem value="points_asc">Points ↑</SelectItem>
-            <SelectItem value="difficulty_asc">Difficulty ↑</SelectItem>
-            <SelectItem value="difficulty_desc">Difficulty ↓</SelectItem>
-            <SelectItem value="title_asc">Name A-Z</SelectItem>
-            <SelectItem value="title_desc">Name Z-A</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-    </div>
+    </AdminFilterToolbar>
   )
 }
