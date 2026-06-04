@@ -15,6 +15,12 @@ export interface AuditLogEntry {
   }
 }
 
+// The generated Supabase types don't include p_action_filters for this RPC.
+// Use a typed helper to call it with the correct parameters.
+function callAuditRpc(args: { p_limit: number; p_offset: number; p_action_filters: string[] | null }) {
+  return (supabase.rpc as any)('get_auth_audit_logs', args) as ReturnType<typeof supabase.rpc>
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
@@ -41,16 +47,15 @@ function normalizeAuditLog(row: any): AuditLogEntry {
   }
 }
 
-/**
- * Fetch audit logs via RPC (auto pagination, adaptive limit)
- */
-export async function getAuditLogs(limit = 1000): Promise<AuditLogEntry[]> {
+export async function getAuditLogs(limit = 1000, actionFilters?: string[]): Promise<AuditLogEntry[]> {
   const batchSize = 1000
+  const actionFiltersParam = actionFilters && actionFilters.length > 0 ? actionFilters : null
 
   if (limit <= batchSize) {
-    const { data, error } = await supabase.rpc('get_auth_audit_logs', {
+    const { data, error } = await callAuditRpc({
       p_limit: limit,
       p_offset: 0,
+      p_action_filters: actionFiltersParam,
     })
 
     if (error) {
@@ -63,9 +68,10 @@ export async function getAuditLogs(limit = 1000): Promise<AuditLogEntry[]> {
 
   const batchCount = Math.ceil(limit / batchSize)
   const promises = Array.from({ length: batchCount }, (_, i) =>
-    supabase.rpc('get_auth_audit_logs', {
+    callAuditRpc({
       p_limit: batchSize,
       p_offset: i * batchSize,
+      p_action_filters: actionFiltersParam,
     })
   )
 
