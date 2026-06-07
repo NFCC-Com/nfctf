@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Activity, AlertTriangle, Server } from 'lucide-react'
 import APP from '@/config'
-import { AdminContentLoading, AdminPageShell, AdminPageSurface, AdminStickyToolbar, AdminTabs } from '@/features/admin/ui'
+import Loader from '@/shared/components/Loader'
+import { AdminContentLoading, AdminPageShell, AdminPageSurface, AdminStickyToolbar, AdminTabs, useTabState } from '@/features/admin/ui'
 import {
   buildLiveServiceRows,
   buildPlatformChallengeGroups,
@@ -75,7 +76,7 @@ export default function AdminServicesPage() {
     runGlobalServiceAction,
   } = useAdminServicesData()
 
-  const [activeTab, setActiveTab] = useState<AdminServiceTab>('platform')
+  const [activeTab, setActiveTab] = useTabState<AdminServiceTab>('tab', 'live')
   const [filters, setFilters] = useState<AdminServicesFilters>(DEFAULT_FILTERS)
   const [nowTick, setNowTick] = useState(() => Date.now())
   const [openForm, setOpenForm] = useState(false)
@@ -154,19 +155,14 @@ export default function AdminServicesPage() {
   if (authLoading || !accessReady) return <AdminContentLoading variant="services" />
   if (!user || !isAllowed) return null
 
-  if (isLoading) {
-    return (
-      <AdminPageShell>
-        <AdminContentLoading variant="services" />
-      </AdminPageShell>
-    )
-  }
+  const showLiveLoading = isLoading || statusLoading
+  const showPlatformLoading = platformEntries.length === 0 && (isLoading || statusLoading)
 
   return (
     <>
       <AdminPageShell>
-        <div className="space-y-0">
-          {platformError && (
+        <div className="flex flex-col min-h-0 flex-1">
+          {activeTab === 'platform' && platformError && (
             <div className="mb-4">
               <SafeStatusNotice
                 title="Platform config unavailable"
@@ -175,7 +171,7 @@ export default function AdminServicesPage() {
             </div>
           )}
 
-          {runtimeStatus.error && (
+          {activeTab === 'live' && runtimeStatus.error && (
             <div className="mb-4">
               <SafeStatusNotice
                 title={runtimeStatus.isComplete ? 'Runtime status warning' : 'Full live inventory unavailable'}
@@ -191,14 +187,14 @@ export default function AdminServicesPage() {
                     onChange={setActiveTab}
                     items={[
                       {
-                        value: 'platform',
-                        label: 'Platform Services',
-                        icon: Server,
+                        value: 'live',
+                        label: 'Actual Services',
+                        icon: Activity,
                       },
                       {
-                        value: 'live',
-                        label: 'Live Services',
-                        icon: Activity,
+                        value: 'platform',
+                        label: 'Supabase Services',
+                        icon: Server,
                       },
                     ]}
                   />
@@ -219,21 +215,37 @@ export default function AdminServicesPage() {
             }
           />
 
-          <div className="w-full">
+          <div className="flex flex-1 min-h-0">
             {activeTab === 'platform' ? (
-              <AdminPlatformChallengesTable
-                groups={filteredPlatformGroups}
-                onEditChallenge={(row) => void handleOpenEdit(row)}
-              />
+              showPlatformLoading ? (
+                <div className="flex flex-1 items-center justify-center">
+                  <Loader size={40} />
+                </div>
+              ) : (
+                <div className="w-full">
+                  <AdminPlatformChallengesTable
+                    groups={filteredPlatformGroups}
+                    onEditChallenge={(row) => void handleOpenEdit(row)}
+                  />
+                </div>
+              )
             ) : (
-              <AdminLiveServicesTable
-                rows={filteredLiveRows}
-                isGlobalAdmin={isGlobalAdmin}
-                actionLoading={actionLoading}
-                globalActionLoading={globalActionLoading}
-                onNxctlAction={(target, action) => void runNxctlAction(target, action)}
-                onGlobalAction={(action) => void runGlobalServiceAction(action)}
-              />
+              showLiveLoading ? (
+                <div className="flex flex-1 items-center justify-center">
+                  <Loader size={40} />
+                </div>
+              ) : (
+                <div className="w-full">
+                  <AdminLiveServicesTable
+                    rows={filteredLiveRows}
+                    isGlobalAdmin={isGlobalAdmin}
+                    actionLoading={actionLoading}
+                    globalActionLoading={globalActionLoading}
+                    onNxctlAction={(target, action) => void runNxctlAction(target, action)}
+                    onGlobalAction={(action) => void runGlobalServiceAction(action)}
+                  />
+                </div>
+              )
             )}
           </div>
         </div>

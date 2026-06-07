@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useMemo, useCallback } from 'react'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { Coins, Sparkles, Trophy, Rocket } from 'lucide-react'
 
 import { APP } from '@/config'
 import Loader from '@/shared/components/Loader'
 import EmptyState from '@/shared/components/EmptyState'
+import PageLoader from '@/shared/components/PageLoader'
 import PageBackground from '@/shared/components/PageBackground'
 import EventSelect from '@/features/events/components/EventSelect'
 import { AppTabs, Card, CardContent } from '@/shared/ui'
@@ -31,7 +32,20 @@ export default function TeamScoreboardPage() {
   const router = useRouter()
   const { startedEvents, selectedEvent, setSelectedEvent } = useEventContext()
 
-  const [showTotalScore, setShowTotalScore] = useState(false)
+  const searchParams = useSearchParams()
+  const pathname = usePathname()
+  const showTotalScore = useMemo(() => {
+    return searchParams.get('tab') === 'total'
+  }, [searchParams])
+  const setShowTotalScore = useCallback((value: boolean) => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (value) {
+      params.set('tab', 'total')
+    } else {
+      params.set('tab', 'unique')
+    }
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+  }, [searchParams, pathname, router])
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -106,9 +120,7 @@ export default function TeamScoreboardPage() {
         )}
 
         {loading && entries.length === 0 ? (
-          <div className="flex justify-center py-10">
-            <Loader color="text-blue-500" />
-          </div>
+          <PageLoader />
         ) : entries.length === 0 ? (
           <Card className={SURFACE_GLASS_CARD_INTERACTIVE_BLUE_CLASS}>
             <CardContent>
