@@ -43,6 +43,20 @@ export function mergeProfilePicture<T extends Record<string, any>>(base: T, auth
   return merged
 }
 
+export function isValidTeamName(name: string): string | null {
+  const trimmed = name.trim()
+  if (trimmed.length > 64) {
+    return 'Team name must be at most 64 characters.'
+  }
+  if (trimmed.length < 3) {
+    return 'Team name must be at least 3 characters.'
+  }
+  if (!/^[a-zA-Z0-9_. -]+$/.test(trimmed)) {
+    return 'Team name can only contain letters, numbers, spaces, ".", "_", and "-".'
+  }
+  return null
+}
+
 export function isValidUsername(username: string): string | null {
   // Tidak boleh lebih dari 30 karakter
   if (username.length > 30) {
@@ -61,9 +75,9 @@ export function isValidUsername(username: string): string | null {
   if (/([\uD83C-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF])/.test(username)) {
     return 'Username cannot contain emoji.'
   }
-  // Hanya boleh huruf, angka, underscore, titik, strip
-  if (!/^[a-zA-Z0-9_.-]+$/.test(username)) {
-    return 'Username can only contain letters, numbers, ".", "_", and "-".'
+  // Hanya boleh huruf, angka, spasi, underscore, titik, strip
+  if (!/^[a-zA-Z0-9_. -]+$/.test(username)) {
+    return 'Username can only contain letters, numbers, spaces, ".", "_", and "-".'
   }
   return null // valid
 }
