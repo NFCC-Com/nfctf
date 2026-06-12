@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useState } from 'react'
+import { memo, useCallback, useLayoutEffect, useRef, useState } from 'react'
 import { Check, Copy } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { MarkdownRenderer } from '@/shared/markdown/MarkdownRenderer'
@@ -24,8 +24,9 @@ type SubChallengePanelProps = {
   flag: string | null
   message: string | null
   onAnswerChange: (orderNumber: number, value: string) => void
-  onSubmit: (orderNumber?: number) => void
-  onReset: () => void
+  onSubmit: (orderNumber?: number) => void | Promise<unknown>
+  onReset: () => void | Promise<unknown>
+  preserveDialogScroll?: () => () => void
 }
 
 function normalizeQuestionMarkdown(value: string) {
@@ -42,7 +43,94 @@ const QuestionMarkdown = memo(function QuestionMarkdown({ content }: { content: 
   return <MarkdownRenderer content={content} className="max-w-full break-words" />
 })
 
+type ScrollAnchorSnapshot = {
+  element: HTMLElement
+  selector?: string
+  top: number
+  scrollParent: HTMLElement | null
+  scrollTop: number
+  windowScroll: { x: number; y: number }
+}
+
+function getScrollParent(element: HTMLElement) {
+  let parent = element.parentElement
+
+  while (parent) {
+    const style = window.getComputedStyle(parent)
+    const canScroll = ['auto', 'scroll', 'overlay'].includes(style.overflowY)
+
+    if (canScroll && parent.scrollHeight > parent.clientHeight) return parent
+    parent = parent.parentElement
+  }
+
+  return null
+}
+
+function captureScrollAnchor(element: HTMLElement | null, selector?: string): ScrollAnchorSnapshot | null {
+  if (!element) return null
+  const scrollParent = getScrollParent(element)
+
+  return {
+    element,
+    selector,
+    top: element.getBoundingClientRect().top,
+    scrollParent,
+    scrollTop: scrollParent?.scrollTop ?? window.scrollY,
+    windowScroll: { x: window.scrollX, y: window.scrollY },
+  }
+}
+
+function restoreScrollAnchor(snapshot: ScrollAnchorSnapshot | null) {
+  if (!snapshot) return
+
+  const restore = () => {
+    window.scrollTo({ left: snapshot.windowScroll.x, top: snapshot.windowScroll.y, behavior: 'auto' })
+
+    const nextElement = snapshot.selector
+      ? document.querySelector<HTMLElement>(snapshot.selector)
+      : null
+    const element = nextElement || (snapshot.element.isConnected ? snapshot.element : null)
+
+    if (!element) {
+      if (snapshot.scrollParent) {
+        snapshot.scrollParent.scrollTo({ top: snapshot.scrollTop, behavior: 'auto' })
+      } else {
+        window.scrollTo({ left: snapshot.windowScroll.x, top: snapshot.windowScroll.y, behavior: 'auto' })
+      }
+      return
+    }
+
+    const delta = element.getBoundingClientRect().top - snapshot.top
+
+    if (Math.abs(delta) < 1) return
+
+    if (snapshot.scrollParent) {
+      snapshot.scrollParent.scrollTo({
+        top: snapshot.scrollParent.scrollTop + delta,
+        behavior: 'auto',
+      })
+      return
+    }
+
+    window.scrollTo({
+      left: snapshot.windowScroll.x,
+      top: window.scrollY + delta,
+      behavior: 'auto',
+    })
+  }
+
+  restore()
+  requestAnimationFrame(() => {
+    restore()
+    requestAnimationFrame(restore)
+  })
+  window.setTimeout(restore, 50)
+  window.setTimeout(restore, 150)
+  window.setTimeout(restore, 300)
+}
+
 type QuestionCardProps = {
+  cardAnchorId: string
   question: SubChallengeQuestion
   answer: string
   result?: boolean
@@ -50,10 +138,13 @@ type QuestionCardProps = {
   completed: boolean
   current?: boolean
   onAnswerChange: (value: string) => void
-  onSubmit: () => void
+  onSubmit: () => void | Promise<unknown>
+  onSubmitScrollAnchorCapture?: (snapshot: ScrollAnchorSnapshot | null) => void
+  onSubmitScrollAnchorClear?: (snapshot: ScrollAnchorSnapshot | null) => void
 }
 
 function QuestionCard({
+  cardAnchorId,
   question,
   answer,
   result,
@@ -62,16 +153,78 @@ function QuestionCard({
   current = false,
   onAnswerChange,
   onSubmit,
+  onSubmitScrollAnchorCapture,
+  onSubmitScrollAnchorClear,
 }: QuestionCardProps) {
+  const cardRef = useRef<HTMLDivElement>(null)
+  const scrollPositionRef = useRef({ x: 0, y: 0 })
+  const submitScrollPositionRef = useRef({ x: 0, y: 0 })
+  const submitScrollAnchorRef = useRef<ScrollAnchorSnapshot | null>(null)
   const questionContent = normalizeQuestionMarkdown(question.question)
+  const cardAnchorSelector = `[data-sub-question-card-id="${cardAnchorId}"]`
   const cardClassName = completed
     ? `min-w-0 overflow-x-hidden space-y-2 p-2.5 opacity-90 ${SURFACE_GLASS_CARD_COMPACT_CLASS}`
     : current
       ? `min-w-0 overflow-x-hidden space-y-2 p-2.5 border-blue-500/40 shadow-lg shadow-blue-500/10 ${SURFACE_GLASS_CARD_COMPACT_CLASS}`
       : `min-w-0 overflow-x-hidden space-y-2 p-2.5 ${SURFACE_GLASS_CARD_COMPACT_CLASS}`
+  const saveWindowScroll = useCallback(() => {
+    scrollPositionRef.current = { x: window.scrollX, y: window.scrollY }
+  }, [])
+  const restoreWindowScroll = useCallback(() => {
+    const scrollPosition = scrollPositionRef.current
+
+    requestAnimationFrame(() => {
+      window.scrollTo({ left: scrollPosition.x, top: scrollPosition.y, behavior: 'auto' })
+    })
+  }, [])
+  const restoreWindowScrollAfterSubmit = useCallback((scrollPosition: { x: number; y: number }) => {
+    requestAnimationFrame(() => {
+      window.scrollTo({ left: scrollPosition.x, top: scrollPosition.y, behavior: 'auto' })
+    })
+    window.setTimeout(() => {
+      window.scrollTo({ left: scrollPosition.x, top: scrollPosition.y, behavior: 'auto' })
+    }, 50)
+    window.setTimeout(() => {
+      window.scrollTo({ left: scrollPosition.x, top: scrollPosition.y, behavior: 'auto' })
+    }, 150)
+  }, [])
+  const saveSubmitScrollPosition = useCallback(() => {
+    submitScrollPositionRef.current = { x: window.scrollX, y: window.scrollY }
+  }, [])
+  const prepareSubmitScrollRestore = useCallback(() => {
+    saveSubmitScrollPosition()
+    submitScrollAnchorRef.current = captureScrollAnchor(cardRef.current, cardAnchorSelector)
+    onSubmitScrollAnchorCapture?.(submitScrollAnchorRef.current)
+  }, [cardAnchorSelector, onSubmitScrollAnchorCapture, saveSubmitScrollPosition])
+  const submitWithoutScrollJump = useCallback(() => {
+    const scrollPosition = submitScrollPositionRef.current
+    const scrollAnchor = submitScrollAnchorRef.current
+    const restoreAfterLayoutChange = () => {
+      if (scrollAnchor) {
+        restoreScrollAnchor(scrollAnchor)
+        return
+      }
+
+      restoreWindowScrollAfterSubmit(scrollPosition)
+    }
+    const result = onSubmit()
+    const clearAnchor = () => onSubmitScrollAnchorClear?.(scrollAnchor)
+
+    restoreAfterLayoutChange()
+
+    if (result instanceof Promise) {
+      void result.finally(() => {
+        restoreAfterLayoutChange()
+        clearAnchor()
+      })
+      return
+    }
+
+    clearAnchor()
+  }, [onSubmit, onSubmitScrollAnchorClear, restoreWindowScrollAfterSubmit])
 
   return (
-    <div className={cardClassName}>
+    <div ref={cardRef} data-sub-question-card-id={cardAnchorId} className={cardClassName}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex select-none items-center gap-2">
@@ -99,7 +252,18 @@ function QuestionCard({
         <input
           type="text"
           value={answer}
-          onChange={completed ? undefined : (event) => onAnswerChange(event.target.value)}
+          onMouseDown={completed ? undefined : saveWindowScroll}
+          onTouchStart={completed ? undefined : saveWindowScroll}
+          onFocus={completed ? undefined : restoreWindowScroll}
+          onChange={
+            completed
+              ? undefined
+              : (event) => {
+                saveWindowScroll()
+                onAnswerChange(event.target.value)
+                restoreWindowScroll()
+              }
+          }
           placeholder={completed ? 'Answer saved' : 'Type your answer...'}
           readOnly={completed}
           className={
@@ -112,14 +276,20 @@ function QuestionCard({
           onKeyDown={(event) => {
             if (!completed && event.key === 'Enter') {
               event.preventDefault()
-              onSubmit()
+              prepareSubmitScrollRestore()
+              submitWithoutScrollJump()
             }
           }}
         />
         {!completed && (
           <button
             type="button"
-            onClick={onSubmit}
+            onMouseDown={(event) => {
+              event.preventDefault()
+              prepareSubmitScrollRestore()
+            }}
+            onTouchStart={prepareSubmitScrollRestore}
+            onClick={submitWithoutScrollJump}
             disabled={submitting || !answer?.trim()}
             className="select-none rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm shadow-blue-500/20 transition hover:bg-blue-500 disabled:opacity-50"
           >
@@ -153,6 +323,11 @@ export default function SubChallengePanel({
   onReset,
 }: SubChallengePanelProps) {
   const [copiedFlag, setCopiedFlag] = useState<Record<string, boolean>>({})
+  const pendingScrollAnchorRef = useRef<ScrollAnchorSnapshot | null>(null)
+  const pendingScrollAnchorClearTimerRef = useRef<number | null>(null)
+  const submitAllButtonRef = useRef<HTMLButtonElement>(null)
+  const submitAllScrollPositionRef = useRef({ x: 0, y: 0 })
+  const submitAllScrollAnchorRef = useRef<ScrollAnchorSnapshot | null>(null)
   const subChallengeFlagCopyKey = `${challengeId}-sub-flag`
   const hasQuestions =
     mode === 'non_sequential'
@@ -161,6 +336,83 @@ export default function SubChallengePanel({
         ? !!nextQuestion || completed
         : false
   const isShowingEmptyQuestionMessage = !loading && loaded && !hasQuestions
+  const capturePendingScrollAnchor = useCallback((snapshot: ScrollAnchorSnapshot | null) => {
+    if (pendingScrollAnchorClearTimerRef.current) {
+      window.clearTimeout(pendingScrollAnchorClearTimerRef.current)
+      pendingScrollAnchorClearTimerRef.current = null
+    }
+
+    pendingScrollAnchorRef.current = snapshot
+    restoreScrollAnchor(snapshot)
+  }, [])
+  const clearPendingScrollAnchor = useCallback((snapshot: ScrollAnchorSnapshot | null) => {
+    if (!snapshot) return
+
+    if (pendingScrollAnchorClearTimerRef.current) {
+      window.clearTimeout(pendingScrollAnchorClearTimerRef.current)
+    }
+
+    pendingScrollAnchorClearTimerRef.current = window.setTimeout(() => {
+      if (pendingScrollAnchorRef.current === snapshot) {
+        pendingScrollAnchorRef.current = null
+      }
+      pendingScrollAnchorClearTimerRef.current = null
+    }, 500)
+  }, [])
+  const saveSubmitAllScrollPosition = useCallback(() => {
+    submitAllScrollPositionRef.current = { x: window.scrollX, y: window.scrollY }
+  }, [])
+  const prepareSubmitAllScrollRestore = useCallback(() => {
+    saveSubmitAllScrollPosition()
+    submitAllScrollAnchorRef.current = captureScrollAnchor(submitAllButtonRef.current)
+    capturePendingScrollAnchor(submitAllScrollAnchorRef.current)
+  }, [capturePendingScrollAnchor, saveSubmitAllScrollPosition])
+  const submitAllWithoutScrollJump = useCallback(() => {
+    const scrollPosition = submitAllScrollPositionRef.current
+    const scrollAnchor = submitAllScrollAnchorRef.current
+    const restoreAfterLayoutChange = () => {
+      if (scrollAnchor) {
+        restoreScrollAnchor(scrollAnchor)
+        return
+      }
+
+      requestAnimationFrame(() => {
+        window.scrollTo({ left: scrollPosition.x, top: scrollPosition.y, behavior: 'auto' })
+      })
+      window.setTimeout(() => {
+        window.scrollTo({ left: scrollPosition.x, top: scrollPosition.y, behavior: 'auto' })
+      }, 50)
+      window.setTimeout(() => {
+        window.scrollTo({ left: scrollPosition.x, top: scrollPosition.y, behavior: 'auto' })
+      }, 150)
+    }
+    const result = onSubmit()
+    const clearAnchor = () => clearPendingScrollAnchor(scrollAnchor)
+
+    restoreAfterLayoutChange()
+
+    if (result instanceof Promise) {
+      void result.finally(() => {
+        restoreAfterLayoutChange()
+        clearAnchor()
+      })
+      return
+    }
+
+    clearAnchor()
+  }, [clearPendingScrollAnchor, onSubmit])
+
+  useLayoutEffect(() => {
+    restoreScrollAnchor(pendingScrollAnchorRef.current)
+  }, [completed, flag, message, nextQuestion, questions, results, submitting])
+
+  useLayoutEffect(() => {
+    return () => {
+      if (pendingScrollAnchorClearTimerRef.current) {
+        window.clearTimeout(pendingScrollAnchorClearTimerRef.current)
+      }
+    }
+  }, [])
 
   return (
     <div className="space-y-3 min-w-0 overflow-x-hidden">
@@ -184,6 +436,7 @@ export default function SubChallengePanel({
               return (
                 <QuestionCard
                   key={question.order_number}
+                  cardAnchorId={`${challengeId}-${question.order_number}`}
                   question={question}
                   answer={answers[orderKey] || ''}
                   result={results[orderKey]}
@@ -191,6 +444,8 @@ export default function SubChallengePanel({
                   completed={isCompleted}
                   onAnswerChange={(value) => onAnswerChange(question.order_number, value)}
                   onSubmit={() => onSubmit(question.order_number)}
+                  onSubmitScrollAnchorCapture={capturePendingScrollAnchor}
+                  onSubmitScrollAnchorClear={clearPendingScrollAnchor}
                 />
               )
             })
@@ -199,6 +454,7 @@ export default function SubChallengePanel({
               {questions.filter((question) => results[String(question.order_number)] === true).map((question) => (
                 <QuestionCard
                   key={question.order_number}
+                  cardAnchorId={`${challengeId}-${question.order_number}`}
                   question={question}
                   answer={answers[String(question.order_number)] || ''}
                   result={results[String(question.order_number)]}
@@ -206,11 +462,14 @@ export default function SubChallengePanel({
                   completed
                   onAnswerChange={() => { }}
                   onSubmit={() => { }}
+                  onSubmitScrollAnchorCapture={capturePendingScrollAnchor}
+                  onSubmitScrollAnchorClear={clearPendingScrollAnchor}
                 />
               ))}
 
               {!completed && nextQuestion && (
                 <QuestionCard
+                  cardAnchorId={`${challengeId}-${nextQuestion.order_number}`}
                   question={nextQuestion}
                   answer={answers[String(nextQuestion.order_number)] || ''}
                   result={results[String(nextQuestion.order_number)]}
@@ -219,6 +478,8 @@ export default function SubChallengePanel({
                   current
                   onAnswerChange={(value) => onAnswerChange(nextQuestion.order_number, value)}
                   onSubmit={() => onSubmit(nextQuestion.order_number)}
+                  onSubmitScrollAnchorCapture={capturePendingScrollAnchor}
+                  onSubmitScrollAnchorClear={clearPendingScrollAnchor}
                 />
               )}
             </>
@@ -228,9 +489,15 @@ export default function SubChallengePanel({
 
       {hasQuestions && !completed && mode === 'non_sequential' && (
         <button
+          ref={submitAllButtonRef}
           type="button"
           disabled={submitting || !Object.values(answers).some((value) => value?.trim())}
-          onClick={() => onSubmit()}
+          onMouseDown={(event) => {
+            event.preventDefault()
+            prepareSubmitAllScrollRestore()
+          }}
+          onTouchStart={prepareSubmitAllScrollRestore}
+          onClick={submitAllWithoutScrollJump}
           className="select-none rounded-xl border border-blue-500/30 bg-blue-600/90 px-5 py-2 font-bold text-white shadow-sm shadow-blue-500/20 transition hover:bg-blue-500 disabled:opacity-50"
         >
           {submitting ? '...' : 'Submit All Answers'}
