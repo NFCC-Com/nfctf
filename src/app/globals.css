@@ -431,6 +431,7 @@ textarea::-webkit-resizer {
     transform: translateX(100%);
     opacity: 0;
   }
+
   to {
     transform: translateX(0);
     opacity: 1;
@@ -442,24 +443,32 @@ textarea::-webkit-resizer {
 }
 
 @keyframes blood-shake {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: scale(1) rotate(0deg);
   }
+
   10% {
     transform: scale(1.05) rotate(-2deg);
   }
+
   20% {
     transform: scale(1.05) rotate(2deg) translate(-1px, -1px);
   }
+
   30% {
     transform: scale(1.05) rotate(-2deg) translate(1px, 1px);
   }
+
   40% {
     transform: scale(1.03) rotate(1deg);
   }
+
   50% {
     transform: scale(1.05) rotate(-1deg);
   }
+
   60% {
     transform: scale(1) rotate(0deg);
   }
@@ -473,6 +482,7 @@ textarea::-webkit-resizer {
   from {
     width: 100%;
   }
+
   to {
     width: 0%;
   }
@@ -484,4 +494,10 @@ textarea::-webkit-resizer {
 
 .animate-toast-progress-15s {
   animation: toast-progress 15s linear forwards;
+}
+
+/* Hide Plotly legend scrollbar while keeping it scrollable */
+.js-plotly-plot .legend .scrollbar,
+.js-plotly-plot .legend .scrollhandle {
+  display: none !important;
 }
