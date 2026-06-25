@@ -94,15 +94,15 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, highlightTeamS
 
         {/* Solved Flag Badge — flush top-right corner, only user-solved */}
         {isSolved && (
-          <div className="absolute top-0 right-0 z-20 flex items-center justify-center w-9 h-9 rounded-tr-2xl rounded-bl-2xl bg-green-500/15 border-b border-l border-green-500/40">
-            <Flag size={13} className="text-green-400 fill-green-400" strokeWidth={2} />
+          <div className="absolute top-0 right-0 z-20 flex items-center justify-center w-6 h-6 rounded-tr-2xl rounded-bl-xl bg-green-500/15 border-b border-l border-green-500/40">
+            <Flag size={10} className="text-green-400 fill-green-400" strokeWidth={2} />
           </div>
         )}
 
         {/* Team Solved Badge — top-right, only team solved (not personally) */}
         {isTeamSolved && !isSolved && (
-          <div className="absolute top-0 right-0 z-20 flex items-center justify-center w-9 h-9 rounded-tr-2xl rounded-bl-2xl bg-purple-500/15 border-b border-l border-purple-500/40">
-            <CheckCircle2 size={13} className="text-purple-400" strokeWidth={2} />
+          <div className="absolute top-0 right-0 z-20 flex items-center justify-center w-6 h-6 rounded-tr-2xl rounded-bl-xl bg-purple-500/15 border-b border-l border-purple-500/40">
+            <CheckCircle2 size={10} className="text-purple-400" strokeWidth={2} />
           </div>
         )}
 
@@ -156,8 +156,7 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, highlightTeamS
             </div>
 
             {/* RIGHT: Points */}
-            {/* mr-8 to avoid overlap with flag badge */}
-            <div className={`shrink-0 text-base font-black tracking-tight leading-none transition-colors duration-400 ${isSolved ? 'mr-8' : isTeamSolved ? 'mr-8' : ''}
+            <div className={`shrink-0 text-base font-black tracking-tight leading-none transition-colors duration-400
                 ${isSolved
                 ? 'text-green-400'
                 : isTeamSolved
@@ -170,11 +169,9 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, highlightTeamS
           {/* Title */}
           <div className="mb-4 flex-1">
             <h3 className={`text-sm font-bold leading-5 line-clamp-1 md:text-base md:leading-6 transition-colors duration-400
-              ${isSolved
-                ? 'text-gray-400 group-hover:text-green-300'
-                : isTeamSolved
-                  ? 'text-gray-400 group-hover:text-purple-300'
-                  : `text-white ${cardHover.titleHover}`}`}>
+              ${isAnySolved
+                ? `text-gray-400 ${cardHover.titleHover}`
+                : `text-white ${cardHover.titleHover}`}`}>
               {challenge.title}
             </h3>
           </div>
