@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Flag, CheckCircle2 } from 'lucide-react'
+import { Flag, CheckCircle2, ListChecks, Server, Key } from 'lucide-react'
 import APP from '@/config'
 import { Dialog, DialogContent, DialogTitle } from '@/shared/ui'
 import { MarkdownRenderer } from '@/shared/markdown/MarkdownRenderer'
@@ -164,10 +164,11 @@ const ChallengeDetailDialog: React.FC<ChallengeDetailDialogProps> = ({
   const rawDiff = (challenge.difficulty || '').toString().trim();
   const normalizedDiff = rawDiff === 'imposible' ? 'Impossible' : rawDiff.charAt(0).toUpperCase() + rawDiff.slice(1).toLowerCase();
   const colorName = (APP as any).difficultyStyles?.[normalizedDiff];
-  const { textClass: diffTextColor } = getDifficultyStyle(colorName);
-  const { borderColor: categoryBorderColor, badgeColor: categoryBadgeColor } = getCategoryDetails(challenge.category);
+  const { badgeClass: diffBadgeColor, textClass: diffTextColor } = getDifficultyStyle(colorName);
+  const { color: categoryIconColor, borderColor: categoryBorderColor, badgeColor: categoryBadgeColor } = getCategoryDetails(challenge.category);
   const eventName = events.find(e => e.id === challenge.event_id)?.name || '';
   const dialogTitle = getChallengeDialogTitle(challenge.title);
+  const featureType = getChallengeFeatureType(challenge);
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {
@@ -215,33 +216,57 @@ const ChallengeDetailDialog: React.FC<ChallengeDetailDialogProps> = ({
                     const sub = parts.slice(1).join('/');
                     return (
                       <div className="flex items-center gap-2">
-                        <div className={`select-none text-[12px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${categoryBadgeColor}`}>
+                        <div className={`select-none text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${categoryBadgeColor} ${categoryBorderColor}`}>
                           {parent}
                         </div>
                         {sub && (
-                          <span className="text-[12px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                            / {sub}
-                          </span>
+                          <>
+                            <span className="text-[11px] font-bold text-gray-400 dark:text-gray-600 select-none">
+                              /
+                            </span>
+                            <div className={`select-none text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border border-dashed ${categoryBorderColor} ${categoryIconColor} bg-opacity-5`}>
+                              {sub}
+                            </div>
+                          </>
                         )}
                       </div>
                     );
                   })()}
 
-                  {(() => {
-                    const featureType = getChallengeFeatureType(challenge);
-                    return featureType !== 'N' ? (
-                      <span className="select-none text-[11px] font-bold bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded uppercase tracking-tight">
-                        {featureType}
-                      </span>
-                    ) : null;
-                  })()}
+
                 </div>
 
-                {/* Difficulty */}
-                <div className="select-none flex items-center">
-                  <span className={`text-[12px] font-bold tracking-wide ${diffTextColor}`}>
+                {/* Difficulty & Features */}
+                <div className="select-none flex items-center gap-2">
+                  <span className={`text-[11px] font-bold tracking-wide px-2 py-0.5 rounded border ${diffBadgeColor}`}>
                     {normalizedDiff}
                   </span>
+                  
+                  {featureType !== 'N' && (
+                    <>
+                      <div className="w-[1px] h-3.5 bg-gray-300 dark:bg-gray-700 select-none" />
+                      <div className="flex items-center gap-2">
+                        {featureType.includes('T') && (
+                          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded border border-blue-500/20">
+                            <ListChecks size={12} className="shrink-0" />
+                            Tasks
+                          </span>
+                        )}
+                        {featureType.includes('S') && (
+                          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/20">
+                            <Server size={12} className="shrink-0" />
+                            Services
+                          </span>
+                        )}
+                        {featureType.includes('F') && (
+                          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded border border-amber-500/20">
+                            <Key size={12} className="shrink-0" />
+                            Placeholder
+                          </span>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
